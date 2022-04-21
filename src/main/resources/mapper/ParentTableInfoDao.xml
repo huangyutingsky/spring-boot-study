@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.example.dao.ParentTableInfoDao">
+
+	<!-- 可根据自己的需求，是否要使用 -->
+    <resultMap type="org.example.entity.ParentTableInfoEntity" id="parentTableInfoMap">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="strategy" column="strategy"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="createTime" column="create_time"/>
+        <collection property="shareTableInfos" ofType="org.example.entity.ShareTableInfoEntity">
+            <result property="id" column="id"/>
+            <result property="parentTableId" column="parent_table_id"/>
+            <result property="incrNum" column="incr_num"/>
+            <result property="name" column="name"/>
+            <result property="rows" column="row_num"/>
+            <result property="maxRows" column="max_rows"/>
+            <result property="serverId" column="server_id"/>
+            <result property="begin" column="begin"/>
+            <result property="end" column="end"/>
+            <result property="updateTime" column="update_time"/>
+            <result property="createTime" column="create_time"/>
+        </collection>
+    </resultMap>
+    <update id="updateIncrNumMax">
+        update parent_table_info set incr_num_max = incr_num_max + 1
+    </update>
+
+    <select id="selectByName" resultType="org.example.entity.ParentTableInfoEntity">
+        select * from parent_table_info pti left join share_table_info sti on sti.parent_table_id = pti.id where name = #{name}
+    </select>
+
+
+</mapper>

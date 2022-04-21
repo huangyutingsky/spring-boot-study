@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.example.dao.ShareTableInfoDao">
+
+    <!-- 可根据自己的需求，是否要使用 -->
+    <resultMap type="org.example.entity.ShareTableInfoEntity" id="shareTableInfoMap">
+        <result property="id" column="id"/>
+        <result property="parentTableId" column="parent_table_id"/>
+        <result property="incrNum" column="incr_num"/>
+        <result property="name" column="name"/>
+        <result property="rows" column="row_num"/>
+        <result property="maxRows" column="max_rows"/>
+        <result property="serverId" column="server_id"/>
+        <result property="begin" column="begin"/>
+        <result property="end" column="end"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="createTime" column="create_time"/>
+        <association property="serverEntity" javaType="org.example.entity.ServerEntity">
+            <result property="ip" column="ip"/>
+            <result property="port" column="port"/>
+            <result property="ismaster" column="isMaster"/>
+            <result property="canRead" column="can_read"/>
+            <result property="canWrite" column="can_write"/>
+            <result property="state" column="state"/>
+            <result property="loadServerIds" column="load_server_ids"/>
+            <result property="dsName" column="ds_name"/>
+        </association>
+    </resultMap>
+    <update id="incrRowNumById">
+        update share_table_info set row_num = row_num + 1 where id = #{id}
+    </update>
+
+    <select id="getServerInfoByParentTableName" resultMap="shareTableInfoMap">
+        select sti.*, s.* from parent_table_info pti left join share_table_info sti on pti.id = sti.parent_table_id
+        left join server s
+        on sti.server_id = s.id
+        where pti.name = #{parentTableName}
+    </select>
+
+    <select id="getLatestShareTableInfoByParentTableName" resultMap="shareTableInfoMap">
+        select sti.*, s.* from parent_table_info pti left join share_table_info sti on pti.id = sti.parent_table_id
+        left join server s
+        on sti.server_id = s.id
+        where pti.name = #{parentTableName}
+        order by sti.incr_num desc
+        limit 1
+    </select>
+
+    <select id="countShareTableNum" resultType="java.lang.Integer">
+        select count(sti.id) from parent_table_info pti left join share_table_info sti on sti.parent_table_id = pti.id where pti.name = #{parentTableName}
+    </select>
+
+</mapper>
