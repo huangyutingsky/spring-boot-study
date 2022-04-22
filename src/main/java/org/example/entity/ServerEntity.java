@@ -36,7 +36,7 @@ public class ServerEntity implements Serializable {
 	/**
 	 * 是否是master
 	 */
-	private Boolean ismaster;
+	private Boolean isMaster;
 	/**
 	 * 是否可读
 	 */

@@ -19,7 +19,7 @@
         <association property="serverEntity" javaType="org.example.entity.ServerEntity">
             <result property="ip" column="ip"/>
             <result property="port" column="port"/>
-            <result property="ismaster" column="isMaster"/>
+            <result property="isMaster" column="is_master"/>
             <result property="canRead" column="can_read"/>
             <result property="canWrite" column="can_write"/>
             <result property="state" column="state"/>
@@ -28,10 +28,10 @@
         </association>
     </resultMap>
     <update id="incrRowNumById">
-        update share_table_info set row_num = row_num + 1 where id = #{id}
+        update share_table_info set row_num = row_num + (#{increment}) where id = #{id}
     </update>
 
-    <select id="getServerInfoByParentTableName" resultMap="shareTableInfoMap">
+    <select id="getShareTableInfoByParentTableName" resultMap="shareTableInfoMap">
         select sti.*, s.* from parent_table_info pti left join share_table_info sti on pti.id = sti.parent_table_id
         left join server s
         on sti.server_id = s.id

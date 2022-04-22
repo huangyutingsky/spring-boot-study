@@ -8,7 +8,7 @@
         <result property="id" column="id"/>
         <result property="ip" column="ip"/>
         <result property="port" column="port"/>
-        <result property="ismaster" column="isMaster"/>
+        <result property="isMaster" column="is_master"/>
         <result property="canRead" column="can_read"/>
         <result property="canWrite" column="can_write"/>
         <result property="state" column="state"/>
@@ -18,7 +18,7 @@
         <result property="createTime" column="create_time"/>
     </resultMap>
     <select id="getDefaultServer" resultType="org.example.entity.ServerEntity">
-        SELECT id, ip, port, isMaster, can_read, can_write, state, load_server_ids, ds_name, update_time, create_time
+        SELECT id, ip, port, is_master, can_read, can_write, state, load_server_ids, ds_name, update_time, create_time
         FROM medical_report.server
         WHERE id=1;
     </select>

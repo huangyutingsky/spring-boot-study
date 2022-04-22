@@ -17,11 +17,11 @@ import java.util.List;
  */
 @Mapper
 public interface ShareTableInfoDao extends BaseMapper<ShareTableInfoEntity> {
-	List<ShareTableInfoEntity> getServerInfoByParentTableName(@Param("parentTableName") String parentTableName);
+	List<ShareTableInfoEntity> getShareTableInfoByParentTableName(@Param("parentTableName") String parentTableName);
 
     ShareTableInfoEntity getLatestShareTableInfoByParentTableName(String parentTable);
 
-    void incrRowNumById(Integer id);
+    void incrRowNumById(Integer id, Integer increment);
 
     Integer countShareTableNum(@Param("parentTableName") String parentTableName);
 }

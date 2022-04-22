@@ -8,8 +8,10 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import java.io.Serializable;
 import java.util.Date;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * 分片表信息
@@ -18,6 +20,8 @@ import lombok.Data;
  * @email ${email}
  * @date 2022-04-20 18:32:01
  */
+@AllArgsConstructor
+@NoArgsConstructor
 @Builder
 @Data
 @TableName("share_table_info")

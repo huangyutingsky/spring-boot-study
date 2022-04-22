@@ -28,8 +28,8 @@
         update parent_table_info set incr_num_max = incr_num_max + 1
     </update>
 
-    <select id="selectByName" resultType="org.example.entity.ParentTableInfoEntity">
-        select * from parent_table_info pti left join share_table_info sti on sti.parent_table_id = pti.id where name = #{name}
+    <select id="selectByName" resultMap="parentTableInfoMap">
+        select * from parent_table_info pti left join share_table_info sti on sti.parent_table_id = pti.id where pti.name = #{name}
     </select>
 
 

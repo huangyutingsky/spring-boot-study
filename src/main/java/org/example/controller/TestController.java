@@ -1,7 +1,9 @@
 package org.example.controller;
 
+import cn.hutool.core.util.RandomUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
+import org.example.dao.UserDao;
 import org.example.entity.MyProperty;
 import org.example.service.caiyun.CaiyunCreateCatalogExtApi;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,24 +35,20 @@ public class TestController {
 
     @Autowired
     private MyProperty property;
+    @Autowired
+    private UserDao userDao;
 
     @Autowired
     private CaiyunCreateCatalogExtApi caiyunCreateCatalogExtApi;
 
     @RequestMapping("Test01")
     public Map<String, Object> test01() {
-        final Map<String, Object> map = new HashMap<>();
-//        map.put("A", name);
-//        map.put("B", property);
-        String mobile = "15815950857";
-        String name = "黄御挺";
-        String idCard = "440681199905113252";
-        try {
-            final ResponseEntity<String> responseEntity = caiyunCreateCatalogExtApi.createCatalogExt("测试子目录——电子发票02", "15815950857", 0);
-        } catch (Exception e) {
-            e.printStackTrace();
+        for (int i = 0; i < 10; i++) {
+            userDao.insert("INSERT INTO {table}\n" +
+                    "(id, user_name, nick_name, passwd, department, phone, name, state, last_time, created_time, updated_time, salt, pwd_is_changed)\n" +
+                    String.format("VALUES({id}, 'admin%s第%d_user02', '管理员', 'e18c8c2ed47ba5da882acada637ec9a60ec19461bc1d66d651cc69256794b26a', NULL, '%s', NULL, 1, '2022-03-23 17:54:14', '2020-09-07 14:12:08', '2022-03-23 17:54:14', 'adminpass', 1);\n", RandomUtil.randomString(5), i, RandomUtil.randomInt(11000, 200000)));
         }
-        return map;
+        return null;
     }
 
     @RequestMapping("Test02")

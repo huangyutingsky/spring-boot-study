@@ -3,6 +3,7 @@ package org.example;
 
 import cn.hutool.core.lang.Snowflake;
 import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.RandomUtil;
 import com.alibaba.druid.pool.DruidDataSource;
 import com.alibaba.druid.sql.parser.SQLParser;
 import com.alibaba.fastjson.JSON;
@@ -79,15 +80,19 @@ class CloudHospitalApplicationTests {
     private UserDao userDao;
 
 
-
     @Test
     void test01() throws IOException {
+        userDao.update("update {table} set nick_name= 'heihei' where id in (114, 116) ");
+//        userDao.delete("delete from {table} where user_name = 'adminbvnwf第1_user02'");
+//        final List<ShareTableInfoEntity> user = shareTableInfoDao.getServerInfoByParentTableName("user");
 //        final List<ShareTableInfoEntity> user = shareTableInfoDao.getServerInfoByParentTableName("user");
 //        log.info("{}", user);
 //        userDao.query("select * from {table} where phone = '13660670642'");
-        userDao.insert("INSERT INTO {table}\n" +
-                "(id, user_name, nick_name, passwd, department, phone, name, state, last_time, created_time, updated_time, salt, pwd_is_changed)\n" +
-                "VALUES({id}, 'admin03_user02', '管理员', 'e18c8c2ed47ba5da882acada637ec9a60ec19461bc1d66d651cc69256794b26a', NULL, '13660670645', NULL, 1, '2022-03-23 17:54:14', '2020-09-07 14:12:08', '2022-03-23 17:54:14', 'adminpass', 1);\n");
+//        for (int i = 0; i < 10; i++) {
+//            userDao.insert("INSERT INTO {table}\n" +
+//                    "(id, user_name, nick_name, passwd, department, phone, name, state, last_time, created_time, updated_time, salt, pwd_is_changed)\n" +
+//                    String.format("VALUES({id}, 'admin%s第%d_user02', '管理员', 'e18c8c2ed47ba5da882acada637ec9a60ec19461bc1d66d651cc69256794b26a', NULL, '%s', NULL, 1, '2022-03-23 17:54:14', '2020-09-07 14:12:08', '2022-03-23 17:54:14', 'adminpass', 1);\n", RandomUtil.randomString(5), i, RandomUtil.randomInt(11000, 200000)));
+//        }
 //        jdbcTemplate.execute("insert  into employees (id,fname,lname,hired,store_id) values(null,'张三','张','2015-05-04',2);");
 //        RLock reportReadyLock = redissonClient.getLock("test-redission-lock");
 //        try {

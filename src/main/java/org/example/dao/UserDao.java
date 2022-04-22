@@ -1,14 +1,13 @@
 package org.example.dao;
 
 import com.alibaba.druid.pool.DruidDataSource;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.alibaba.fastjson.JSON;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.entity.ParentTableInfoEntity;
-import org.example.entity.ServerEntity;
-import org.example.entity.ShareTableInfoEntity;
-import org.example.entity.UserEntity;
+import org.example.entity.*;
 import org.example.enumeration.TableDdlEnum;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -17,7 +16,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import javax.jws.Oneway;
 import javax.sql.DataSource;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -26,7 +24,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -68,7 +65,7 @@ public class UserDao {
         final ArrayList<UserEntity> allDatas = new ArrayList<>();
 
         // 根据表名获取所有分片表对应的分片表信息与对应服务器信息
-        final List<ShareTableInfoEntity> shareTableInfos = shareTableInfoDao.getServerInfoByParentTableName(PARENT_TABLE);
+        final List<ShareTableInfoEntity> shareTableInfos = shareTableInfoDao.getShareTableInfoByParentTableName(PARENT_TABLE);
 
         // 根据数据源信息，从Spring容器获取对应的数据源Bean
         for (ShareTableInfoEntity shareTableInfo : shareTableInfos) {
@@ -81,7 +78,7 @@ public class UserDao {
             // 封装执行sql信息体
             sqlExecuteInfos.add(SqlExecuteInfo.builder()
                     .dataSource(ds)
-                    .tableName(shareTableName)
+                    .shareTableInfo(shareTableInfo)
                     .build());
         }
 
@@ -93,12 +90,13 @@ public class UserDao {
         for (SqlExecuteInfo sqlExecuteInfo : sqlExecuteInfos) {
             try (Connection conn = sqlExecuteInfo.getDataSource().getConnection();
                  Statement statement = conn.createStatement()) {
-                final String newSql = sql.replace("{table}", sqlExecuteInfo.getTableName());
+                final ShareTableInfoEntity shareTableInfo = sqlExecuteInfo.getShareTableInfo();
+                final String newSql = sql.replace("{table}", shareTableInfo.getName());
                 final ResultSet resultSet = statement.executeQuery(newSql);
                 final List<UserEntity> objects = resultSetToBean(resultSet, UserEntity.class);
                 allDatas.addAll(objects);
                 // TODO: 2022/4/21 order by、limit、group by处理 
-                log.info("tableName={} 条数={}", sqlExecuteInfo.getTableName(), objects.size());
+                log.info("tableName={} 条数={}", shareTableInfo.getName(), objects.size());
             } catch (SQLException e) {
                 log.info("conn异常:{}", e.getMessage(), e);
             } catch (Exception e) {
@@ -119,36 +117,30 @@ public class UserDao {
         final ShareTableInfoEntity shareTableInfo = shareTableInfoDao.getLatestShareTableInfoByParentTableName(PARENT_TABLE);
         final Integer max = shareTableInfo.getMaxRows();
         final Integer rows = shareTableInfo.getRows();
-        // TODO: 2022/4/21 并发情况是否允许?
-        // 该表记录数小于五百万
+        // TODO: 2022/4/21 并发情况是否允许?或采用Redis精准控制
+        // 该表记录数小于max
         if (rows < max) {
             // 获取数据源名称
             final String dsName = shareTableInfo.getServerEntity().getDsName();
-            // 获取分片表名称
-            final String shareTableName = shareTableInfo.getName();
             // 根据数据源名称从Spring容器获取对应的数据源Bean
             final DruidDataSource ds = applicationContext.getBean(dsName, DruidDataSource.class);
-            final SqlExecuteInfo sqlExecuteInfo = SqlExecuteInfo.builder()
-                    .dataSource(ds)
-                    .tableName(shareTableName)
-                    .build();
 
             String insertSql = null;
             try (Connection conn = ds.getConnection();
                  Statement statement = conn.createStatement()) {
                 // 获取该表全局唯一uuid
                 String uuid = Objects.requireNonNull(redisTemplate.opsForValue().increment("uuid:" + PARENT_TABLE)).toString();
-                insertSql = sql.replace("{table}", sqlExecuteInfo.getTableName()).replace("{id}", uuid);
+                insertSql = sql.replace("{table}", shareTableInfo.getName()).replace("{id}", uuid);
                 statement.execute(insertSql);
                 log.info("新增数据成功,sql={}", insertSql);
             } catch (SQLException e) {
                 log.info("conn异常:{} ,sql={}", e.getMessage(), insertSql, e);
             }
             // 更新对应分片信息
-            shareTableInfoDao.incrRowNumById(shareTableInfo.getId());
+            shareTableInfoDao.incrRowNumById(shareTableInfo.getId(), 1);
         } else {
             // 该表记录数大于等于五百万
-            log.info("{}表记录数超过五百万", shareTableInfo.getName());
+            log.info("{}表记录数超过max:{}, 创建新的分片表", shareTableInfo.getName(), max);
             String lockName = "createTableLock:" + PARENT_TABLE;
             final Boolean getLock = redisTemplate.opsForValue().setIfAbsent(lockName, 1, Duration.ofMinutes(30));
             if (getLock != null && getLock) {
@@ -165,7 +157,7 @@ public class UserDao {
                     ParentTableInfoEntity parentTableInfo = parentTableInfoDao.selectByName(PARENT_TABLE);
                     int count = parentTableInfo.getShareTableInfos().size();
                     // 新的分片表：父表名_分片数
-                    String newShareTableName = PARENT_TABLE + "_" + count;
+                    String newShareTableName = PARENT_TABLE + "_" + (count + 1);
                     createTableSql = TableDdlEnum.USER.getDdl().replace("{table}", newShareTableName);
                     // 创建表
                     statement.execute(createTableSql);
@@ -179,7 +171,7 @@ public class UserDao {
                             .parentTableId(parentTableInfo.getId())
                             .serverId(defaultServer.getId())
                             .build());
-                    // 更新父表分片数 + 1
+                    // 对应分片表数据总数 + 1
                     parentTableInfoDao.updateIncrNumMax();
                 } catch (SQLException e) {
                     log.info("conn异常:{} ,sql={}", e.getMessage(), createTableSql, e);
@@ -187,12 +179,111 @@ public class UserDao {
                     // 释放创建表锁
                     redisTemplate.delete(lockName);
                 }
-            } else {
-                // 未获取到创建表锁，将该sql放入队列
-                String queue = "queue:insertUserQueue";
-                redisTemplate.opsForList().leftPush(queue, sql);
+            }
+
+            // 将该sql放入队列
+            String queue = "queue:insertUserQueue";
+            redisTemplate.opsForList().leftPush(queue, JSON.toJSONString(SqlExecuteMessage.builder()
+                    .sql(sql)
+                    .parentTableName(PARENT_TABLE)
+                    .build()));
+        }
+    }
+
+    /**
+     * 删除
+     *
+     * @param sql sql语句
+     */
+    public void delete(String sql) {
+        final ArrayList<SqlExecuteInfo> sqlExecuteInfos = new ArrayList<>();
+
+        // 根据表名获取所有分片表对应的分片表信息与对应服务器信息
+        final List<ShareTableInfoEntity> shareTableInfos = shareTableInfoDao.getShareTableInfoByParentTableName(PARENT_TABLE);
+
+        // 根据数据源信息，从Spring容器获取对应的数据源Bean
+        for (ShareTableInfoEntity shareTableInfo : shareTableInfos) {
+            // 获取数据源名称
+            final String dsName = shareTableInfo.getServerEntity().getDsName();
+            // 根据数据源名称从Spring容器获取对应的数据源Bean
+            final DruidDataSource ds = applicationContext.getBean(dsName, DruidDataSource.class);
+            // 封装执行sql信息体
+            sqlExecuteInfos.add(SqlExecuteInfo.builder()
+                    .dataSource(ds)
+                    .shareTableInfo(shareTableInfo)
+                    .build());
+        }
+
+        if (CollectionUtils.isEmpty(sqlExecuteInfos)) {
+            return;
+        }
+
+        int deleteNum = 0;
+        String newSql = null;
+        for (SqlExecuteInfo sqlExecuteInfo : sqlExecuteInfos) {
+            try (Connection conn = sqlExecuteInfo.getDataSource().getConnection();
+                 Statement statement = conn.createStatement()) {
+                final ShareTableInfoEntity shareTableInfo = sqlExecuteInfo.getShareTableInfo();
+                newSql = sql.replace("{table}", shareTableInfo.getName());
+                final int affectRows = statement.executeUpdate(newSql);
+                if (affectRows > 0) {
+                    // 对应分片表数据总数 - affectRows
+                    shareTableInfoDao.incrRowNumById(sqlExecuteInfo.getShareTableInfo().getId(), -affectRows);
+                    deleteNum += affectRows;
+                }
+            } catch (SQLException e) {
+                log.info("conn异常:{}", e.getMessage(), e);
+            } catch (Exception e) {
+                log.info("resultSetToBean异常:{}", e.getMessage(), e);
             }
         }
+        log.info("删除成功, sql={} 删除数={}", newSql, deleteNum);
+    }
+
+    /**
+     * 更新
+     *
+     * @param sql sql语句
+     */
+    public void update(String sql) {
+        final ArrayList<SqlExecuteInfo> sqlExecuteInfos = new ArrayList<>();
+
+        // 根据表名获取所有分片表对应的分片表信息与对应服务器信息
+        final List<ShareTableInfoEntity> shareTableInfos = shareTableInfoDao.getShareTableInfoByParentTableName(PARENT_TABLE);
+
+        // 根据数据源信息，从Spring容器获取对应的数据源Bean
+        for (ShareTableInfoEntity shareTableInfo : shareTableInfos) {
+            // 获取数据源名称
+            final String dsName = shareTableInfo.getServerEntity().getDsName();
+            // 根据数据源名称从Spring容器获取对应的数据源Bean
+            final DruidDataSource ds = applicationContext.getBean(dsName, DruidDataSource.class);
+            // 封装执行sql信息体
+            sqlExecuteInfos.add(SqlExecuteInfo.builder()
+                    .dataSource(ds)
+                    .shareTableInfo(shareTableInfo)
+                    .build());
+        }
+
+        if (CollectionUtils.isEmpty(sqlExecuteInfos)) {
+            return;
+        }
+
+        int updateNum = 0;
+        String newSql = null;
+        for (SqlExecuteInfo sqlExecuteInfo : sqlExecuteInfos) {
+            try (Connection conn = sqlExecuteInfo.getDataSource().getConnection();
+                 Statement statement = conn.createStatement()) {
+                final ShareTableInfoEntity shareTableInfo = sqlExecuteInfo.getShareTableInfo();
+                newSql = sql.replace("{table}", shareTableInfo.getName());
+                final int affectRows = statement.executeUpdate(newSql);
+                updateNum += affectRows;
+            } catch (SQLException e) {
+                log.info("conn异常:{}", e.getMessage(), e);
+            } catch (Exception e) {
+                log.info("resultSetToBean异常:{}", e.getMessage(), e);
+            }
+        }
+        log.info("更新成功, sql={} 更新数={}", newSql, updateNum);
     }
 
 
@@ -254,7 +345,9 @@ public class UserDao {
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 class SqlExecuteInfo {
     private DataSource dataSource;
-    private String tableName;
+    private ShareTableInfoEntity shareTableInfo;
 }
