@@ -17,9 +17,9 @@ import lombok.NoArgsConstructor;
 public class SqlExecuteMessage {
 
     /**
-     * sql语句
+     * 操作实体
      */
-    private String sql;
+    private UserEntity user;
 
     /**
      * 父表名

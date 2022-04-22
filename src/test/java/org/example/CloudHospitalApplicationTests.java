@@ -82,7 +82,7 @@ class CloudHospitalApplicationTests {
 
     @Test
     void test01() throws IOException {
-        userDao.update("update {table} set nick_name= 'heihei' where id in (114, 116) ");
+        userDao.update("update {table} set nick_name= 'heihei' where id in (109, 116) ");
 //        userDao.delete("delete from {table} where user_name = 'adminbvnwf第1_user02'");
 //        final List<ShareTableInfoEntity> user = shareTableInfoDao.getServerInfoByParentTableName("user");
 //        final List<ShareTableInfoEntity> user = shareTableInfoDao.getServerInfoByParentTableName("user");

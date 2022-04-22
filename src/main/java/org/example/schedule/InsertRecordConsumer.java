@@ -46,7 +46,7 @@ public class InsertRecordConsumer {
 
         final SqlExecuteMessage message = JSON.parseObject(o.toString(), SqlExecuteMessage.class);
         // 执行插入数据逻辑
-        userDao.insert(message.getSql());
+//        userDao.insert(message.getSql());
 
     }
 

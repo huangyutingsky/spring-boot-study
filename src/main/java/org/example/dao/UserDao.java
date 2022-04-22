@@ -56,6 +56,83 @@ public class UserDao {
     private RedisTemplate<String, Object> redisTemplate;
 
     /**
+     * 新增
+     *
+     * @param sql sql语句
+     */
+    public void insertBatch(List<UserEntity> users) {
+
+        final Map<DataSource, List<UserEntity>> dsBeansMap = new HashMap<>();
+
+        for (UserEntity user : users) {
+            // 分表策略（每条数据插入表时，根据策略选取不同的数据源）：根据父表名查询最新的分片表信息
+            final ShareTableInfoEntity shareTableInfo = shareTableInfoDao.getLatestShareTableInfoByParentTableName(PARENT_TABLE);
+            final Integer max = shareTableInfo.getMaxRows();
+            final Integer rows = shareTableInfo.getRows();
+            // 获取数据源名称
+            final String dsName = shareTableInfo.getServerEntity().getDsName();
+            // 根据数据源名称从Spring容器获取对应的数据源Bean
+            final DruidDataSource ds = applicationContext.getBean(dsName, DruidDataSource.class);
+            // TODO: 2022/4/21 并发情况是否允许?或采用Redis精准控制
+            // 该表记录数小于max
+            if (rows < max) {
+                // 相同ds数据源的放入同一个list
+                final List<UserEntity> beans = dsBeansMap.getOrDefault(ds, new ArrayList<>());
+                beans.add(user);
+                dsBeansMap.put(ds, beans);
+            } else {
+                // 该表记录数大于等于五百万
+                log.info("{}表记录数超过max:{}, 创建新的分片表", shareTableInfo.getName(), max);
+                String lockName = "createTableLock:" + PARENT_TABLE;
+                final Boolean getLock = redisTemplate.opsForValue().setIfAbsent(lockName, 1, Duration.ofMinutes(30));
+                if (getLock != null && getLock) {
+                    // 获取到创建表锁
+                    // 创建表
+                    String createTableSql = null;
+                    try (Connection conn = ds.getConnection();
+                         Statement statement = conn.createStatement()) {
+                        // 查询父表所有信息
+                        ParentTableInfoEntity parentTableInfo = parentTableInfoDao.selectByName(PARENT_TABLE);
+                        int count = parentTableInfo.getShareTableInfos().size();
+                        // 新的分片表：父表名_分片数
+                        String newShareTableName = PARENT_TABLE + "_" + (count + 1);
+                        createTableSql = TableDdlEnum.USER.getDdl().replace("{table}", newShareTableName);
+                        // 创建表
+                        statement.execute(createTableSql);
+                        log.info("创建表成功,sql={}", createTableSql);
+                        // 插入分片表信息
+                        shareTableInfoDao.insert(ShareTableInfoEntity.builder()
+                                .createTime(new Date())
+                                .updateTime(new Date())
+                                .incrNum(count + 1)
+                                .name(newShareTableName)
+                                .parentTableId(parentTableInfo.getId())
+                                .serverId(shareTableInfo.getServerEntity().getId())
+                                .build());
+                        // 对应分片表数据总数 + 1
+                        parentTableInfoDao.updateIncrNumMax();
+                    } catch (SQLException e) {
+                        log.info("conn异常:{} ,sql={}", e.getMessage(), createTableSql, e);
+                    } finally {
+                        // 释放创建表锁
+                        redisTemplate.delete(lockName);
+                    }
+                }
+
+                // 将该sql放入队列
+                String queue = "queue:insertUserQueue";
+                redisTemplate.opsForList().leftPush(queue, JSON.toJSONString(SqlExecuteMessage.builder()
+                        .user(user)
+                        .parentTableName(PARENT_TABLE)
+                        .build()));
+            }
+
+            // TODO: 2022/4/22 对Map进行分组批量操作
+        }
+    }
+
+
+    /**
      * 查询
      *
      * @param sql
@@ -145,8 +222,7 @@ public class UserDao {
             final Boolean getLock = redisTemplate.opsForValue().setIfAbsent(lockName, 1, Duration.ofMinutes(30));
             if (getLock != null && getLock) {
                 // 获取到创建表锁
-                // 选择分片表所在服务的数据源，默认选择id=1的服务（在哪个服务上建表）
-                final ServerEntity defaultServer = serverDao.getDefaultServer();
+                final ServerEntity defaultServer = shareTableInfo.getServerEntity();
                 // 根据数据源名称从Spring容器获取对应的数据源Bean
                 final DruidDataSource ds = applicationContext.getBean(defaultServer.getDsName(), DruidDataSource.class);
                 // 创建表
@@ -184,7 +260,7 @@ public class UserDao {
             // 将该sql放入队列
             String queue = "queue:insertUserQueue";
             redisTemplate.opsForList().leftPush(queue, JSON.toJSONString(SqlExecuteMessage.builder()
-                    .sql(sql)
+//                    .sql(sql)
                     .parentTableName(PARENT_TABLE)
                     .build()));
         }
