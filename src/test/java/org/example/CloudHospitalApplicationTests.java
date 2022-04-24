@@ -80,26 +80,29 @@ class CloudHospitalApplicationTests {
     }
 
     @Test
-    void test01() throws IOException {
-//        final ArrayList<UserEntity> userEntities = new ArrayList<>();
-//        for (int i = 0; i < 500; i++) {
-//            final UserEntity userEntity = new UserEntity();
-//            userEntity.setUserName(RandomUtil.randomString(8));
-//            userEntity.setNickName("管理员 第" + i);
-//            userEntity.setPasswd("e18c8c2ed47ba5da882acada637ec9a60ec19461bc1d66d651cc69256794b26a");
-//            userEntity.setDepartment("department");
-//            userEntity.setPhone(RandomUtil.randomString(11));
-//            userEntity.setName(RandomUtil.randomString(10));
-//            userEntity.setState(1);
-//            userEntity.setLastTime(new Date());
-//            userEntity.setUpdatedTime(new Date());
-//            userEntity.setCreatedTime(new Date());
-//            userEntity.setSalt("adminpass");
-//            userEntity.setPwdIsChanged(true);
-//            userEntities.add(userEntity);
-//        }
-//        baseDao.insertBatch(userEntities);
+    void insertBatch() {
+        final ArrayList<UserEntity> userEntities = new ArrayList<>();
+        for (int i = 0; i < 500; i++) {
+            final UserEntity userEntity = new UserEntity();
+            userEntity.setUserName(RandomUtil.randomString(8));
+            userEntity.setNickName("管理员 第" + i);
+            userEntity.setPasswd("e18c8c2ed47ba5da882acada637ec9a60ec19461bc1d66d651cc69256794b26a");
+            userEntity.setDepartment("department");
+            userEntity.setPhone(RandomUtil.randomString(11));
+            userEntity.setName(RandomUtil.randomString(10));
+            userEntity.setState(1);
+            userEntity.setLastTime(new Date());
+            userEntity.setUpdatedTime(new Date());
+            userEntity.setCreatedTime(new Date());
+            userEntity.setSalt("adminpass");
+            userEntity.setPwdIsChanged(true);
+            userEntities.add(userEntity);
+        }
+        baseDao.insertBatch(userEntities);
+    }
 
+    @Test
+    void insertSingle() throws IOException {
         for (int i = 0; i < 10; i++) {
             final UserEntity userEntity = new UserEntity();
             userEntity.setUserName(RandomUtil.randomString(8));
