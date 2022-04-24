@@ -1,60 +1,31 @@
 package org.example;
 
 
-import cn.hutool.core.lang.Snowflake;
-import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.RandomUtil;
-import com.alibaba.druid.pool.DruidDataSource;
-import com.alibaba.druid.sql.parser.SQLParser;
-import com.alibaba.fastjson.JSON;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.sf.jsqlparser.parser.CCJSqlParserUtil;
-import net.sf.jsqlparser.statement.Statement;
-import org.apache.ibatis.session.ExecutorType;
-import org.apache.ibatis.session.SqlSession;
 import org.example.dao.ShareTableInfoDao;
 //import org.example.dao.UserDao;
+import org.example.dao.BaseDao;
 import org.example.dao.UserDao;
-import org.example.entity.CaiyunCreateCatalogExtResponseEntity;
-import org.example.entity.MedicalFileJsonContentEntity;
-import org.example.entity.ServerEntity;
-import org.example.entity.ShareTableInfoEntity;
+import org.example.entity.*;
 import org.example.mapper.MedicalFileJsonContentMapper;
 import org.example.service.TestService;
-import org.example.service.caiyun.CaiyunCreateCatalogExtApi;
-import org.example.service.caiyun.CaiyunGeDiskApi;
-import org.example.service.caiyun.CaiyunGetUserIdApi;
-import org.example.util.XMLUtil;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.SqlSessionTemplate;
-import org.mybatis.spring.SqlSessionUtils;
-import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.annotation.Rollback;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.ObjectUtils;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
+import javax.sql.DataSource;
 import java.io.IOException;
-import java.io.StringReader;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
 
 @Slf4j
 @SpringBootTest
@@ -77,12 +48,123 @@ class CloudHospitalApplicationTests {
     @Autowired
     protected ApplicationContext applicationContext;
     @Autowired
+    private BaseDao baseDao;
+    @Autowired
     private UserDao userDao;
 
 
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    static class DataSourceTableMap {
+        private DataSource dataSource;
+        private ShareTableInfoEntity shareTableInfo;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            DataSourceTableMap that = (DataSourceTableMap) o;
+            return Objects.equals(dataSource, that.dataSource) && Objects.equals(shareTableInfo, that.shareTableInfo);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(dataSource, shareTableInfo);
+        }
+    }
+
     @Test
     void test01() throws IOException {
-        userDao.update("update {table} set nick_name= 'heihei' where id in (109, 116) ");
+//        final ArrayList<UserEntity> userEntities = new ArrayList<>();
+//        for (int i = 0; i < 500; i++) {
+//            final UserEntity userEntity = new UserEntity();
+//            userEntity.setUserName(RandomUtil.randomString(8));
+//            userEntity.setNickName("管理员 第" + i);
+//            userEntity.setPasswd("e18c8c2ed47ba5da882acada637ec9a60ec19461bc1d66d651cc69256794b26a");
+//            userEntity.setDepartment("department");
+//            userEntity.setPhone(RandomUtil.randomString(11));
+//            userEntity.setName(RandomUtil.randomString(10));
+//            userEntity.setState(1);
+//            userEntity.setLastTime(new Date());
+//            userEntity.setUpdatedTime(new Date());
+//            userEntity.setCreatedTime(new Date());
+//            userEntity.setSalt("adminpass");
+//            userEntity.setPwdIsChanged(true);
+//            userEntities.add(userEntity);
+//        }
+//        baseDao.insertBatch(userEntities);
+
+        for (int i = 0; i < 10; i++) {
+            final UserEntity userEntity = new UserEntity();
+            userEntity.setUserName(RandomUtil.randomString(8));
+            userEntity.setNickName("管理员 第" + i);
+            userEntity.setPasswd("e18c8c2ed47ba5da882acada637ec9a60ec19461bc1d66d651cc69256794b26a");
+            userEntity.setDepartment("department");
+            userEntity.setPhone(RandomUtil.randomString(11));
+            userEntity.setName(RandomUtil.randomString(10));
+            userEntity.setState(1);
+            userEntity.setLastTime(new Date());
+            userEntity.setUpdatedTime(new Date());
+            userEntity.setCreatedTime(new Date());
+            userEntity.setSalt("adminpass");
+            userEntity.setPwdIsChanged(true);
+
+            baseDao.insert(userEntity);
+        }
+//        final HashMap<ShareTableInfoEntity, List<Integer>> hm = new HashMap<>();
+//        // 第一次
+//        final ShareTableInfoEntity shareTableInfoEntity = new ShareTableInfoEntity();
+//        shareTableInfoEntity.setId(1);
+//        final List<Integer> list1 = hm.getOrDefault(shareTableInfoEntity, new ArrayList<>());
+//        list1.add(1);
+//        hm.put(shareTableInfoEntity, list1);
+//        // 第二次
+//        final ShareTableInfoEntity shareTableInfoEntity2 = new ShareTableInfoEntity();
+//        shareTableInfoEntity2.setId(1);
+//        final List<Integer> list2 = hm.getOrDefault(shareTableInfoEntity2, new ArrayList<>());
+//        list2.add(2);
+//        hm.put(shareTableInfoEntity2, list2);
+
+//        final HashMap<DataSourceTableMap, List<Integer>> hm = new HashMap<>();
+//        // 第一次
+//        final DruidDataSource ds1 = applicationContext.getBean("ds1", DruidDataSource.class);
+//        final ShareTableInfoEntity shareTableInfoEntity = new ShareTableInfoEntity();
+//        shareTableInfoEntity.setId(1);
+//        final DataSourceTableMap dst1 = DataSourceTableMap.builder().dataSource(ds1).shareTableInfo(shareTableInfoEntity).build();
+//        final List<Integer> list1 = hm.getOrDefault(dst1, new ArrayList<>());
+//        list1.add(1);
+//        hm.put(dst1, list1);
+//        // 第二次
+//        final DruidDataSource ds2 = applicationContext.getBean("ds1", DruidDataSource.class);
+//        final ShareTableInfoEntity shareTableInfoEntity2 = new ShareTableInfoEntity();
+//        shareTableInfoEntity2.setId(1);
+//        final DataSourceTableMap dst2 = DataSourceTableMap.builder().dataSource(ds2).shareTableInfo(shareTableInfoEntity2).build();
+//        final List<Integer> list2 = hm.getOrDefault(dst2, new ArrayList<>());
+//        list2.add(2);
+//        hm.put(dst2, list2);
+
+//        final HashMap<DataSource, List<Integer>> hm = new HashMap<>();
+//        // 第一次
+//        final DruidDataSource ds1 = applicationContext.getBean("ds1", DruidDataSource.class);
+//        final List<Integer> list1 = hm.getOrDefault(ds1, new ArrayList<>());
+//        list1.add(1);
+//        hm.put(ds1, list1);
+//        // 第二次
+//        final DruidDataSource ds2 = applicationContext.getBean("ds1", DruidDataSource.class);
+//        final List<Integer> list2 = hm.getOrDefault(ds2, new ArrayList<>());
+//        list2.add(2);
+//        hm.put(ds2, list2);
+
+        System.out.println(">....");
+
+//        userDao.query("select * from {table}");
+//        userDao.update("update {table} set nick_name= 'heihei' where id in (109, 116) ");
 //        userDao.delete("delete from {table} where user_name = 'adminbvnwf第1_user02'");
 //        final List<ShareTableInfoEntity> user = shareTableInfoDao.getServerInfoByParentTableName("user");
 //        final List<ShareTableInfoEntity> user = shareTableInfoDao.getServerInfoByParentTableName("user");

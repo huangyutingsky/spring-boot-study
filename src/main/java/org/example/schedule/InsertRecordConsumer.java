@@ -2,13 +2,15 @@ package org.example.schedule;
 
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
-import org.example.dao.UserDao;
-import org.example.entity.SqlExecuteMessage;
+import org.example.dao.BaseDao;
+import org.example.entity.UserEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * @author huangyuting
@@ -18,17 +20,18 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 @EnableScheduling
-public class InsertRecordConsumer {
+public class InsertRecordConsumer extends BatchSqlConsumerTemplate {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
     @Autowired
-    private UserDao userDao;
+    private BaseDao baseDao;
 
     private static final String PARENT_TABLE = "user";
 
     @Scheduled(cron = "0/1 * * * * ?")
     private void insertUserRecordConsumer() {
+
         // 判断创建表锁是否已释放（判断创建表动作是否已完成）
         String lockName = "createTableLock:" + PARENT_TABLE;
         final Boolean exist = redisTemplate.hasKey(lockName);
@@ -37,17 +40,16 @@ public class InsertRecordConsumer {
             return;
         }
 
-        // 创建表锁已释放，证明创建表动作完成
+        // 自定义【批量执行sql具体逻辑方法】
+        BatchSqlExecutionInterface batchSqlExecution = (messages) -> {
+            final List<UserEntity> list = JSON.parseArray(messages.toString(), UserEntity.class);
+            baseDao.insertBatch(list);
+        };
+
         String queue = "queue:insertUserQueue";
-        final Object o = redisTemplate.opsForList().rightPop(queue);
-        if (o == null) {
-            return;
-        }
 
-        final SqlExecuteMessage message = JSON.parseObject(o.toString(), SqlExecuteMessage.class);
-        // 执行插入数据逻辑
-//        userDao.insert(message.getSql());
-
+        // 将【批量执行sql具体逻辑方法】作为入参，执行总的批量执行sql逻辑方法
+        this.batchSqlExecution(queue, batchSqlExecution);
     }
 
 }

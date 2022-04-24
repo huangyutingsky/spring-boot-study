@@ -9,7 +9,7 @@
         <result property="parentTableId" column="parent_table_id"/>
         <result property="incrNum" column="incr_num"/>
         <result property="name" column="name"/>
-        <result property="rows" column="row_num"/>
+        <result property="rowNum" column="row_num"/>
         <result property="maxRows" column="max_rows"/>
         <result property="serverId" column="server_id"/>
         <result property="begin" column="begin"/>
@@ -17,6 +17,7 @@
         <result property="updateTime" column="update_time"/>
         <result property="createTime" column="create_time"/>
         <association property="serverEntity" javaType="org.example.entity.ServerEntity">
+            <result property="id" column="server_id"/>
             <result property="ip" column="ip"/>
             <result property="port" column="port"/>
             <result property="isMaster" column="is_master"/>
@@ -27,6 +28,11 @@
             <result property="dsName" column="ds_name"/>
         </association>
     </resultMap>
+
+    <sql id="server_field">
+        s.id as 'server_id', ip, port, is_master, can_read, can_write, state, load_server_ids, ds_name
+    </sql>
+
     <update id="incrRowNumById">
         update share_table_info set row_num = row_num + (#{increment}) where id = #{id}
     </update>
@@ -39,7 +45,7 @@
     </select>
 
     <select id="getLatestShareTableInfoByParentTableName" resultMap="shareTableInfoMap">
-        select sti.*, s.* from parent_table_info pti left join share_table_info sti on pti.id = sti.parent_table_id
+        select sti.*, <include refid="server_field"/> from parent_table_info pti left join share_table_info sti on pti.id = sti.parent_table_id
         left join server s
         on sti.server_id = s.id
         where pti.name = #{parentTableName}

@@ -1,18 +1,16 @@
 package org.example.enumeration;
 
-import lombok.Data;
-
 /**
  * @author huangyuting
  * @Description: 表DDL枚举类
  * @date 2022/4/21 19:41
  */
-public enum TableDdlEnum {
+public enum SqlEnum {
 
     /**
-     * 用户表
+     * 创建用户表
      */
-    USER("CREATE TABLE `{table}` (\n" +
+    CREATE_TABLE_USER("CREATE TABLE `{table}` (\n" +
             "  `id` int NOT NULL AUTO_INCREMENT COMMENT 'primary key',\n" +
             "  `user_name` varchar(20) DEFAULT NULL COMMENT '用户名',\n" +
             "  `nick_name` varchar(20) DEFAULT NULL COMMENT '昵称',\n" +
@@ -29,24 +27,28 @@ public enum TableDdlEnum {
             "  PRIMARY KEY (`id`),\n" +
             "  UNIQUE KEY `user_user_name_uindex` (`user_name`),\n" +
             "  UNIQUE KEY `phone` (`phone`)\n" +
-            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;", "用户表");
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;", "创建用户表"),
 
-    TableDdlEnum(String ddl, String desc) {
-        this.ddl = ddl;
+    INSERT_USER("INSERT INTO {table}\n" +
+            "(id, user_name, nick_name, passwd, department, phone, name, state, last_time, created_time, updated_time, salt, pwd_is_changed)\n" +
+            "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);\n", "新增用户");
+
+    SqlEnum(String ddl, String desc) {
+        this.sql = ddl;
         this.desc = desc;
     }
 
     /**
-     * 生成表DDL语句
+     * sql
      */
-    private String ddl;
+    private String sql;
     /**
      * 描述信息
      */
     private String desc;
 
-    public String getDdl() {
-        return ddl;
+    public String getSql() {
+        return sql;
     }
 
     public String getDesc() {
