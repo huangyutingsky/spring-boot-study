@@ -26,7 +26,7 @@ import java.util.Date;
 
 /**
  * @author huangyuting
- * @Description:
+ * @Description: sql分表操作基类
  * @date 2022/4/20 18:16
  */
 @Slf4j
@@ -113,6 +113,7 @@ public abstract class BaseDao<T> {
                                 .incrNum(count + 1)
                                 .name(newShareTableName)
                                 .parentTableId(parentTableInfo.getId())
+                                 // 选择分表的数据源（默认单库多表）（若考虑多库分表，要动态创建数据源与制定分表的数据源选择策略）
                                 .serverId(shareTableInfo.getServerEntity().getId())
                                 .build());
                         // 对应分片表数据总数 + 1
